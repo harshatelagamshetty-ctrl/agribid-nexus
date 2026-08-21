@@ -16,7 +16,7 @@ public class FulfillmentMatchTool {
         this.warehouseService = warehouseService;
     }
 
-    @Tool(description = "Find the nearest warehouse in a region with enough available capacity to fulfill a given quantity")
+    @Tool(description = "Find the nearest warehouse in a region with enough available capacity to fulfill a given quantity. Returns null if no warehouse in that region has sufficient capacity — if so, say so rather than guessing a warehouse.")
     public Long matchNearestFulfillmentCenter(
             @ToolParam(description = "Region to search within, e.g. warehouseRegion of the winning distributor") String region,
             @ToolParam(description = "Required storage capacity in kg") BigDecimal requiredCapacityKg) {

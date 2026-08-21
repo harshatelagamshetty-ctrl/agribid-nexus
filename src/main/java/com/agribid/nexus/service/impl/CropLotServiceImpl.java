@@ -62,6 +62,7 @@ public class CropLotServiceImpl implements CropLotService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<CropLotResponse> getLotsForFarmer(Long farmerId, Pageable pageable) {
         return cropLotRepository.findByOwnerId(farmerId, pageable).map(CropLotMapper::toResponse);
     }

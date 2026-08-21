@@ -64,6 +64,7 @@ public class BidListingServiceImpl implements BidListingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<BidListingResponse> search(ListingFilterRequest filter) {
         Specification<BidListing> spec = Specification
             .where(BidListingSpecifications.hasCropType(filter.cropTypeCode()))
@@ -79,6 +80,7 @@ public class BidListingServiceImpl implements BidListingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BidListingResponse getListing(Long listingId) {
         return BidListingMapper.toResponse(findListingOrThrow(listingId));
     }

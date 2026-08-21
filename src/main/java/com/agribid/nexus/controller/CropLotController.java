@@ -6,7 +6,6 @@ import com.agribid.nexus.ai.vision.CropGradingService;
 import com.agribid.nexus.dto.mapper.CropLotMapper;
 import com.agribid.nexus.dto.request.CropLotCreateRequest;
 import com.agribid.nexus.dto.response.CropLotResponse;
-import com.agribid.nexus.repository.CropLotRepository;
 import com.agribid.nexus.security.UserPrincipal;
 import com.agribid.nexus.service.CropLotService;
 import jakarta.validation.Valid;
@@ -27,7 +26,6 @@ public class CropLotController {
     private final CropLotService cropLotService;
     private final CropGradingService cropGradingService;
     private final ReservePriceAdvisorService reservePriceAdvisorService;
-    private final CropLotRepository cropLotRepository;
 
     @PostMapping
     @PreAuthorize("hasRole('FARMER')")
@@ -72,9 +70,7 @@ public class CropLotController {
     @GetMapping("/{lotId}/reserve-price-suggestion")
     @PreAuthorize("hasRole('FARMER') and @lotSecurity.isOwner(#lotId, principal)")
     public ResponseEntity<ReservePriceSuggestion> suggestReservePrice(@PathVariable Long lotId) {
-        var lot = cropLotRepository.findById(lotId)
-                .orElseThrow(() -> new com.agribid.nexus.exception.ResourceNotFoundException("Crop lot not found: " + lotId));
-        return ResponseEntity.ok(reservePriceAdvisorService.suggestReservePrice(lot));
+        return ResponseEntity.ok(reservePriceAdvisorService.suggestReservePrice(lotId));
     }
 
     @GetMapping("/{lotId}")

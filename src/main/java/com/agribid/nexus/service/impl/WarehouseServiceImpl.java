@@ -20,19 +20,30 @@ public class WarehouseServiceImpl implements WarehouseService {
     @Override
     public BigDecimal getAvailableCapacity(Long warehouseId) {
         Warehouse warehouse = warehouseRepository.findById(warehouseId)
-            .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found: " + warehouseId));
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found: " + warehouseId));
         return warehouse.availableCapacityKg();
     }
 
+    /**
+     * Returns null when no warehouse in the region has enough
+     * capacity, rather than throwing. The only two callers of this
+     * method (ai/tools/FulfillmentMatchTool and
+     * ai/mcp/server/WarehouseInventoryMcpTools) both invoke it from
+     * inside an AI tool-calling loop — throwing ResourceNotFoundException
+     * here (as an earlier version of this method did) propagates
+     * straight through Gemini's tool-calling mechanism and breaks the
+     * ENTIRE response, not just this one fact. A null return lets the
+     * model say "no warehouse in that region has capacity" instead of
+     * the whole request failing with a 500.
+     */
     @Override
     public Long matchNearestFulfillmentCenter(String region, BigDecimal requiredCapacityKg) {
         List<Warehouse> candidates = warehouseRepository.findByRegion(region);
 
         return candidates.stream()
-            .filter(w -> w.availableCapacityKg().compareTo(requiredCapacityKg) >= 0)
-            .max(Comparator.comparing(Warehouse::availableCapacityKg))
-            .map(Warehouse::getId)
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "No warehouse in region " + region + " has capacity for " + requiredCapacityKg + "kg"));
+                .filter(w -> w.availableCapacityKg().compareTo(requiredCapacityKg) >= 0)
+                .max(Comparator.comparing(Warehouse::availableCapacityKg))
+                .map(Warehouse::getId)
+                .orElse(null);
     }
 }

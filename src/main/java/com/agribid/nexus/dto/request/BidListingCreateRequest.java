@@ -19,6 +19,5 @@ public record BidListingCreateRequest(
         @NotNull(message = "auctionCloseTime is required")
         @Future(message = "auctionCloseTime must be in the future")
         Instant auctionCloseTime
-
 ) {
 }

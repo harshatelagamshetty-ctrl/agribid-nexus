@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -88,13 +87,26 @@ public class SpringAiConfig {
                 .build();
     }
 
+    /**
+     * Injects the ALREADY auto-configured JdbcChatMemoryRepository
+     * rather than building a new one via .builder()...build().
+     *
+     * This matters more than it looks: Spring AI's own
+     * JdbcChatMemoryRepositoryAutoConfiguration creates its own
+     * JdbcChatMemoryRepository bean AND automatically runs the schema
+     * script that creates the SPRING_AI_CHAT_MEMORY table — but only
+     * for the repository instance IT constructs. Manually building a
+     * second, separate JdbcChatMemoryRepository here (as an earlier
+     * version of this file did) bypasses that automatic schema
+     * initialization entirely, since the auto-configuration has no
+     * visibility into an instance built outside of it. The result was
+     * a repository that queries a table that was never created —
+     * exactly the BadSqlGrammarException this fixes.
+     */
     @Bean
-    public ChatMemory chatMemory(JdbcTemplate jdbcTemplate) {
-        JdbcChatMemoryRepository repository = JdbcChatMemoryRepository.builder()
-                .jdbcTemplate(jdbcTemplate)
-                .build();
+    public ChatMemory chatMemory(JdbcChatMemoryRepository jdbcChatMemoryRepository) {
         return MessageWindowChatMemory.builder()
-                .chatMemoryRepository(repository)
+                .chatMemoryRepository(jdbcChatMemoryRepository)
                 .maxMessages(20)
                 .build();
     }

@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * than annotating the main application class) so the "scheduling is
  * on" decision is discoverable in config/ alongside every other
  * cross-cutting toggle, instead of hidden on the entry point.
- */
+ **/
 @Configuration
 @EnableScheduling
 public class SchedulingConfig {

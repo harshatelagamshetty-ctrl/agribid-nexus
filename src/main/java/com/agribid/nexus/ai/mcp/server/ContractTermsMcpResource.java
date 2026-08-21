@@ -22,7 +22,7 @@ import java.util.List;
  */
 @Component
 public class ContractTermsMcpResource {
-
+    
     private final ForwardContractRepository forwardContractRepository;
 
     // Simple hand-rolled JSON serialization to avoid pulling an extra
