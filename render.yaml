@@ -55,3 +55,6 @@ services:
 
       - key: QDRANT_USE_TLS
         sync: false
+
+      - key: QDRANT_API_KEY
+        sync: false
