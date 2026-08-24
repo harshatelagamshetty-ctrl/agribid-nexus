@@ -1,0 +1,53 @@
+# Render Blueprint — commit this at the repo root, then in the Render
+# dashboard choose "New > Blueprint" and point it at this repo. Render
+# will provision the web service and database together in one pass.
+#
+# You'll still need to fill in GEMINI_API_KEY, QDRANT_HOST, QDRANT_PORT,
+# and QDRANT_USE_TLS manually after the first deploy (Qdrant Cloud isn't
+# something Render can provision for you) — set them on the service's
+# Environment tab. JWT_SECRET is auto-generated below.
+
+databases:
+  - name: agribid-nexus-db
+    plan: free
+    databaseName: agribid_nexus
+    user: agribid
+
+services:
+  - type: web
+    name: agribid-nexus
+    runtime: docker
+    plan: free
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_HOST
+        fromDatabase:
+          name: agribid-nexus-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: agribid-nexus-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: agribid-nexus-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: agribid-nexus-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: agribid-nexus-db
+          property: password
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: QDRANT_HOST
+        sync: false
+      - key: QDRANT_PORT
+        sync: false
+      - key: QDRANT_USE_TLS
+        sync: false
