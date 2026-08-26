@@ -42,13 +42,21 @@ public class CropLotController {
      * again before mutating — defense in depth rather than relying on
      * a single layer to never have a bug.
      */
-    @PostMapping(value = "/{lotId}/image", consumes = "multipart/form-data")
+    /**
+     * Replaces the old /image endpoint. capturedAt is submitted as
+     * an ISO-8601 string form field alongside the file and GPS
+     * coordinates — Spring binds it straight to Instant.
+     */
+    @PostMapping(value = "/{lotId}/video", consumes = "multipart/form-data")
     @PreAuthorize("hasRole('FARMER') and @lotSecurity.isOwner(#lotId, principal)")
-    public ResponseEntity<CropLotResponse> attachImage(
+    public ResponseEntity<CropLotResponse> attachVideo(
             @PathVariable Long lotId,
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam("latitude") Double latitude,
+            @RequestParam("longitude") Double longitude,
+            @RequestParam("capturedAt") java.time.Instant capturedAt,
             @AuthenticationPrincipal UserPrincipal farmer) {
-        return ResponseEntity.ok(cropLotService.attachImage(lotId, file, farmer));
+        return ResponseEntity.ok(cropLotService.attachVideo(lotId, file, latitude, longitude, capturedAt, farmer));
     }
 
     /**

@@ -15,11 +15,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * The physical harvest asset. Deliberately decoupled from BidListing
- * (the market event) so a lot's provenance, grading history, and
- * pest-tag associations survive across multiple re-listing cycles.
- */
 @Entity
 @Table(name = "crop_lots")
 @Getter
@@ -41,12 +36,8 @@ public class CropLot {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quality_grade_id")
-    private QualityGrade qualityGrade; // set post-AI vision inspection
+    private QualityGrade qualityGrade;
 
-    /**
-     * Many-to-Many: a single lot can carry multiple concurrent risk
-     * markers detected by the vision pipeline.
-     */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "crop_lot_pest_tag",
@@ -58,17 +49,42 @@ public class CropLot {
     @Column(name = "quantity_kg", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantityKg;
 
-    @Column(name = "image_url")
-    private String imageUrl; // populated via File Upload module
+    /**
+     * Replaces the old single-photo imageUrl. Populated only via
+     * CropLotServiceImpl.attachVideo(), which enforces capture
+     * freshness and requires GPS coordinates alongside the file —
+     * grading can't proceed on a video with no location/timestamp
+     * evidence.
+     */
+    @Column(name = "video_url")
+    private String videoUrl;
+
+    /**
+     * GPS coordinates captured at the moment of recording, submitted
+     * by the client alongside the video upload — not derived from
+     * the video file itself (video files don't reliably carry GPS
+     * EXIF the way photos do). Trust in these values is only as
+     * strong as the client honestly reporting them; this is a
+     * deterrent layer, not a cryptographic guarantee.
+     */
+    @Column(name = "capture_latitude")
+    private Double captureLatitude;
+
+    @Column(name = "capture_longitude")
+    private Double captureLongitude;
+
+    /**
+     * Client-reported capture timestamp. CropLotServiceImpl rejects
+     * uploads where this is more than a few minutes old, closing off
+     * "reuse an old, better-looking video" as a strategy.
+     */
+    @Column(name = "captured_at")
+    private Instant capturedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private LotStatus status = LotStatus.DRAFT;
 
-    /**
-     * One-to-Many: allows a lot to be relisted across auction cycles
-     * without losing its grading/provenance history.
-     */
     @OneToMany(mappedBy = "cropLot", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<BidListing> listings = new ArrayList<>();
 
@@ -76,11 +92,10 @@ public class CropLot {
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
 
-    public CropLot(FarmerProfile owner, Category category, BigDecimal quantityKg, String imageUrl) {
+    public CropLot(FarmerProfile owner, Category category, BigDecimal quantityKg) {
         this.owner = owner;
         this.category = category;
         this.quantityKg = quantityKg;
-        this.imageUrl = imageUrl;
     }
 
     public void applyGrading(QualityGrade grade, Set<PestTag> detectedTags) {

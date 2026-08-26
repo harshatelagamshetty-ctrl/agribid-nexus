@@ -24,17 +24,17 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The moment Gemini's vision response comes back, it's mapped via
- * .entity(CropGradeAssessment.class) into a strongly-typed record and
- * immediately persisted as QualityGrade + PestTag associations —
- * there is no point at which raw, untyped AI text is stored or
- * displayed anywhere in the system.
+ * Grades from a video walkthrough of the whole lot, not a single
+ * staged photo — this is the direct fix for the "farmer photographs
+ * only the good corner" gap. Gemini's multimodal API accepts video
+ * natively (it samples frames across the clip internally) — no
+ * manual frame-extraction/FFmpeg step needed on our side.
  *
- * The grading prompt is externalized to
- * resources/prompts/crop-grading-prompt.st (versioned like code,
- * reusable across callers) rather than an inline Java string —
- * loaded once at construction via @Value("classpath:...") Resource
- * injection.
+ * Honest limitation: this widens the evidence surface (harder to
+ * stage a whole video than one photo) but doesn't make gaming
+ * impossible. The actual enforcement layer is delivery-time
+ * re-verification against this same grade — that's a separate
+ * correction, not something this class does.
  */
 @Service
 public class CropGradingService {
@@ -64,21 +64,21 @@ public class CropGradingService {
     @Transactional
     public CropLot gradeCropLot(Long lotId) {
         CropLot lot = cropLotRepository.findById(lotId)
-            .orElseThrow(() -> new ResourceNotFoundException("Crop lot not found: " + lotId));
+                .orElseThrow(() -> new ResourceNotFoundException("Crop lot not found: " + lotId));
 
-        if (lot.getImageUrl() == null) {
-            throw new IllegalStateException("Crop lot " + lotId + " has no attached image to grade");
+        if (lot.getVideoUrl() == null) {
+            throw new IllegalStateException("Crop lot " + lotId + " has no attached video to grade");
         }
 
-        CropGradeAssessment assessment = gradeImage(
-            fileStorageUtil.loadBytes(lot.getImageUrl()),
-            lot.getCategory() != null ? lot.getCategory().getName() : "unknown crop"
+        CropGradeAssessment assessment = gradeVideo(
+                fileStorageUtil.loadBytes(lot.getVideoUrl()),
+                lot.getCategory() != null ? lot.getCategory().getName() : "unknown crop"
         );
 
         QualityGrade grade = new QualityGrade(
-            assessment.qualityGrade(),
-            assessment.estimatedShelfLifeDays(),
-            assessment.confidenceScore()
+                assessment.qualityGrade(),
+                assessment.estimatedShelfLifeDays(),
+                assessment.confidenceScore()
         );
         qualityGradeRepository.save(grade);
 
@@ -88,35 +88,26 @@ public class CropGradingService {
         return lot;
     }
 
-    private CropGradeAssessment gradeImage(byte[] imageBytes, String cropTypeName) {
+    private CropGradeAssessment gradeVideo(byte[] videoBytes, String cropTypeName) {
         Media media = Media.builder()
-            .mimeType(MimeTypeUtils.IMAGE_JPEG)
-            .data(new ByteArrayResource(imageBytes))
-            .build();
+                .mimeType(MimeTypeUtils.parseMimeType("video/mp4"))
+                .data(new ByteArrayResource(videoBytes))
+                .build();
 
         String renderedPrompt = gradingPromptTemplate.render(Map.of("cropType", cropTypeName));
 
         return visionChatClient.prompt()
-            .user(u -> u.text(renderedPrompt).media(media))
-            .call()
-            .entity(CropGradeAssessment.class);
+                .user(u -> u.text(renderedPrompt).media(media))
+                .call()
+                .entity(CropGradeAssessment.class);
     }
 
-    /**
-     * Pest tags come back from Gemini as free-text labels
-     * (detectedPestTags), so they're normalized against the existing
-     * PestTag reference table by code rather than blindly inserting
-     * whatever string the model returned — this keeps the
-     * crop_lot_pest_tag join table queryable/consistent instead of
-     * accumulating near-duplicate tag rows from minor wording
-     * variation across grading calls.
-     */
     private Set<PestTag> resolveOrCreatePestTags(Iterable<String> detectedLabels) {
         Set<PestTag> resolved = new HashSet<>();
         for (String label : detectedLabels) {
             String code = label.trim().toUpperCase().replace(' ', '_');
             PestTag tag = pestTagRepository.findByCode(code)
-                .orElseGet(() -> pestTagRepository.save(new PestTag(code, label.trim(), null)));
+                    .orElseGet(() -> pestTagRepository.save(new PestTag(code, label.trim(), null)));
             resolved.add(tag);
         }
         return resolved;
