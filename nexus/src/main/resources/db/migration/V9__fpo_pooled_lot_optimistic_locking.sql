@@ -1,0 +1,14 @@
+-- Fixes a real, confirmed race condition: FpoPooledLot.contribute()
+-- and .aggregate() both perform an unprotected read-modify-write on
+-- this table (aggregatedQuantityKg accumulation, and the
+-- open->aggregated status transition respectively). Without this
+-- column, two farmers contributing to the same pool simultaneously
+-- can silently lose one contribution's effect on the running total —
+-- and that total is the exact denominator FpoPayoutResponse uses to
+-- calculate every contributor's payout share, making this a
+-- financial-correctness bug, not a cosmetic one.
+--
+-- Same fix already applied to bid_listings.version in V3 — this
+-- migration closes the same class of bug in a newer feature that
+-- was built without carrying that lesson forward.
+ALTER TABLE fpo_pooled_lots ADD COLUMN version BIGINT NOT NULL DEFAULT 0;

@@ -1,0 +1,60 @@
+# Render Blueprint
+
+databases:
+  - name: agribid-nexus-db-new
+    plan: free
+    databaseName: agribid_nexus_new
+    user: agribid
+
+services:
+  - type: web
+    name: agribid-nexus-new
+    runtime: docker
+    plan: free
+
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: DB_HOST
+        fromDatabase:
+          name: agribid-nexus-db-new
+          property: host
+
+      - key: DB_PORT
+        fromDatabase:
+          name: agribid-nexus-db-new
+          property: port
+
+      - key: DB_NAME
+        fromDatabase:
+          name: agribid-nexus-db-new
+          property: database
+
+      - key: DB_USER
+        fromDatabase:
+          name: agribid-nexus-db-new
+          property: user
+
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: agribid-nexus-db-new
+          property: password
+
+      - key: GEMINI_API_KEY
+        sync: false
+
+      - key: QDRANT_HOST
+        sync: false
+
+      - key: QDRANT_PORT
+        sync: false
+
+      - key: QDRANT_USE_TLS
+        sync: false
+
+      - key: QDRANT_API_KEY
+        sync: false
